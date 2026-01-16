@@ -17,11 +17,11 @@ export default defineConfig(() => ({
     ],
     proxy: {
       '/api/socket': {
-        target: 'ws://185.185.126.198:8082',
+        target: 'wss://locmottus.com.br',
         ws: true,
       },
       '/api': {
-        target: 'http://185.185.126.198:8082',
+        target: 'https://locmottus.com.br',
         changeOrigin: true,
       },
       '/gestao': {
