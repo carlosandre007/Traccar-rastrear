@@ -1,0 +1,115 @@
+import React, { useEffect, useState } from "react";
+import Logo from "../../resources/images/image170.png";
+import vehiclePicture from "../../resources/images/sem_foto.png";
+import { headerPDFDefinition } from "./headerPDFDefinition";
+
+import pdfMake from "pdfmake/build/pdfmake";
+import * as pdfFonts from "pdfmake/build/vfs_fonts";
+
+pdfMake.vfs = pdfFonts?.default?.pdfMake?.vfs || pdfFonts?.pdfMake?.vfs;
+
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+
+// Extende os plugins
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const toBase64FromFile = async (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
+const toBase64FromUrl = async (url) => {
+  const res = await fetch(url);
+  const blob = await res.blob();
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+};
+
+const HistoryPDF = ({ dados, device, from, to, items, period }) => {
+  const [logoBase64, setLogoBase64] = useState(null);
+  const [vehicleBase64, setVehicleBase64] = useState(null);
+
+  useEffect(() => {
+    const loadImages = async () => {
+      const logoB64 = await toBase64FromUrl(Logo);
+      setLogoBase64(logoB64);
+
+      const vehicleUrl = device?.attributes?.deviceImage
+        ? `/api/media/${device?.uniqueId}/${device?.attributes?.deviceImage}`
+        : vehiclePicture;
+
+      try {
+        const vehicleB64 = await toBase64FromUrl(vehicleUrl);
+        setVehicleBase64(vehicleB64);
+      } catch (err) {
+        console.error("Erro ao carregar imagem do veículo:", err);
+        const fallback = await toBase64FromUrl(vehiclePicture);
+        setVehicleBase64(fallback);
+      }
+
+      // console.log("Logo:", logoBase64);
+      // console.log("Veículo:", vehicleBase64);
+    };
+
+    loadImages();
+  }, [device, from, to, items]);
+
+  // https://dev.codeartisan.cloud/api/media/865209073979610/device.jpg
+
+  const generatePDF = async () => {
+    if (!logoBase64 || !vehicleBase64) {
+      console.warn("Imagens não carregadas ainda!");
+      return;
+    }
+  
+    const header = headerPDFDefinition(
+      dados,
+      device,
+      from,
+      to,
+      logoBase64,
+      vehicleBase64
+    );
+  
+    const docDefinition = {
+      pageMargins: [30, 30, 30, 30],
+      pageOrientation: "landscape",
+      header,
+      content: [
+        {
+          text: "Conteúdo do relatório vai aqui...",
+          margin: [0, 20, 0, 0],
+        },
+      ],
+    };
+  
+    pdfMake.createPdf(docDefinition).download("relatorio-historico.pdf");
+  };
+  
+
+  return (
+    <div>
+      {vehicleBase64 && logoBase64 && (
+        <button onClick={generatePDF}>Gerar PDF</button>
+      )}
+
+      {/*       <h1>HistoryPDF</h1>
+      <img src={logoBase64} style={{ width: "100%" }} />
+      <img src={vehicleBase64} style={{ width: "100%" }} /> */}
+    </div>
+  );
+};
+
+export default HistoryPDF;
